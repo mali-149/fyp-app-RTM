@@ -1,0 +1,2 @@
+D:/PCApps/developmet/Flutter/SkyRide/android/app/.cxx/RelWithDebInfo/661t4l1j/arm64-v8a/CMakeFiles/edit_cache.dir
+D:/PCApps/developmet/Flutter/SkyRide/android/app/.cxx/RelWithDebInfo/661t4l1j/arm64-v8a/CMakeFiles/rebuild_cache.dir
