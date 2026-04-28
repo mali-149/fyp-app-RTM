@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:skyride/Screens/profile/aichat.dart';
 import 'package:skyride/Screens/profile/edit.dart';
 import 'package:skyride/Screens/profile/notification.dart';
 import 'package:skyride/Screens/profile/security.dart';
@@ -69,6 +70,16 @@ class Profile extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => PrivacyPolicyScreen()),
+                );
+              },
+            ),
+            ProfileMenu(
+              text: "Contect Us",
+              icon: Icons.contact_mail,
+              press: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => ChatScreen()),
                 );
               },
             ),
