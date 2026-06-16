@@ -1,10 +1,10 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:skyride/services/skyride_api.dart';
+import 'package:skyride/database/session_helper.dart';
+import 'package:skyride/theme/app_theme.dart';
 import 'signup.dart';
-import 'forget.dart';
+import 'Forget.dart';
 import '../navigation/navigation.dart';
 
 class LoginPage extends StatefulWidget {
@@ -17,123 +17,45 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _isLoading = false;
-
   final _formKey = GlobalKey<FormState>();
-
-
-
-  // Future<void> _login() async {
-  //   if (!_formKey.currentState!.validate()) return;
-  //
-  //   setState(() {
-  //     _isLoading = true;
-  //   });
-  //
-  //   final String email = _emailController.text.trim();
-  //   final String password = _passwordController.text.trim();
-  //
-  //   final url = Uri.parse('https://skyride.onrender.com/api/login');
-  //   try {
-  //     final response = await http.post(
-  //       url,
-  //       headers: {
-  //         'Content-Type': 'application/json', // Set content type to JSON
-  //       },
-  //       body: jsonEncode({
-  //         'email': email,
-  //         'password': password,
-  //       }), // Encode body to JSON
-  //     );
-  //
-  //     final responseData = jsonDecode(response.body);
-  //     if (response.statusCode == 200 && responseData['message'] == "User login successful") {
-  //       // Save token and user details to SharedPreferences
-  //       final prefs = await SharedPreferences.getInstance();
-  //       prefs.setString('token', responseData['token'] ?? '');
-  //       prefs.setString('userId', responseData['user']['_id'] ?? '');
-  //       prefs.setString('username', responseData['user']['username'] ?? '');
-  //       prefs.setString('email', responseData['user']['email'] ?? '');
-  //       prefs.setString('dob', responseData['user']['date_of_birth'] ?? '');
-  //       prefs.setString('phone', responseData['user']['phone'].toString());
-  //       prefs.setString('country', responseData['user']['country'] ?? '');
-  //
-  //       // Show success message
-  //       Fluttertoast.showToast(
-  //         msg: "Login successful!",
-  //         toastLength: Toast.LENGTH_SHORT,
-  //         gravity: ToastGravity.BOTTOM,
-  //         backgroundColor: Colors.green,
-  //         textColor: Colors.white,
-  //       );
-  //
-  //       // Navigate after saving preferences
-  //       Navigator.pushReplacement(
-  //         context,
-  //         MaterialPageRoute(builder: (_) => Navigationbar()),
-  //       );
-  //     } else {
-  //       Fluttertoast.showToast(
-  //         msg: responseData['message'] ?? "Login failed",
-  //         toastLength: Toast.LENGTH_LONG,
-  //         gravity: ToastGravity.BOTTOM,
-  //         backgroundColor: Colors.red,
-  //         textColor: Colors.white,
-  //       );
-  //     }
-  //   } catch (error) {
-  //     Fluttertoast.showToast(
-  //       msg: "Something went wrong. Please try again.",
-  //       toastLength: Toast.LENGTH_LONG,
-  //       gravity: ToastGravity.BOTTOM,
-  //       backgroundColor: Colors.red,
-  //       textColor: Colors.white,
-  //     );
-  //   } finally {
-  //     setState(() {
-  //       _isLoading = false;
-  //     });
-  //   }
-  // }
-
-
 
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
-    final String email = _emailController.text.trim();
-    final String password = _passwordController.text.trim();
+    final emailOrUsername = _emailController.text.trim();
+    final password = _passwordController.text.trim();
 
     try {
-      // Simulate small delay like real login
-      await Future.delayed(Duration(seconds: 1));
+      final user = await SkyRideApi.instance.login(emailOrUsername, password);
 
-      // Save fake token + user details
-      final prefs = await SharedPreferences.getInstance();
-      prefs.setString('token', 'fake_token_123456');
-      prefs.setString('userId', 'fake_user_id_001');
-      prefs.setString('username', 'Test User');
-      prefs.setString('email', email);
-      prefs.setString('dob', '2000-01-01');
-      prefs.setString('phone', '0000000000');
-      prefs.setString('country', 'Unknown');
+      if (user != null) {
+        await SessionHelper.saveUserSession(user);
 
-      Fluttertoast.showToast(
-        msg: "Login successful!",
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.BOTTOM,
-        backgroundColor: Colors.green,
-        textColor: Colors.white,
-      );
+        Fluttertoast.showToast(
+          msg: "Login successful!",
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+          backgroundColor: Colors.green,
+          textColor: Colors.white,
+        );
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => Navigationbar()),
-      );
-
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => Navigationbar(sessionKey: user['id'] as String)),
+          );
+        }
+      } else {
+        Fluttertoast.showToast(
+          msg: "Invalid email/username or password",
+          toastLength: Toast.LENGTH_LONG,
+          gravity: ToastGravity.BOTTOM,
+          backgroundColor: Colors.red,
+          textColor: Colors.white,
+        );
+      }
     } catch (error) {
       Fluttertoast.showToast(
         msg: "Something went wrong. Please try again.",
@@ -143,17 +65,14 @@ class _LoginPageState extends State<LoginPage> {
         textColor: Colors.white,
       );
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) setState(() => _isLoading = false);
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.background,
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -166,14 +85,12 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: 60),
                 TextFormField(
                   controller: _emailController,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: "Email or Username",
-                    prefixIcon: const Icon(Icons.email),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    prefixIcon: Icon(Icons.email),
                   ),
                   validator: (value) =>
-                  value == null || value.isEmpty ? 'Please enter your email or username' : null,
+                      value == null || value.isEmpty ? 'Please enter your email or username' : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -194,40 +111,29 @@ class _LoginPageState extends State<LoginPage> {
                           },
                           child: const Text(
                             "Forgot?",
-                            style: TextStyle(color: Color(0xFFF25F12), fontWeight: FontWeight.bold),
+                            style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold),
                           ),
                         ),
                         IconButton(
                           icon: Icon(_isPasswordVisible ? Icons.visibility : Icons.visibility_off),
-                          onPressed: () {
-                            setState(() {
-                              _isPasswordVisible = !_isPasswordVisible;
-                            });
-                          },
+                          onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
                         ),
                       ],
                     ),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   ),
                   validator: (value) =>
-                  value == null || value.isEmpty ? 'Please enter your password' : null,
+                      value == null || value.isEmpty ? 'Please enter your password' : null,
                 ),
                 const SizedBox(height: 20),
                 _isLoading
-                    ? const CircularProgressIndicator()
+                    ? const CircularProgressIndicator(color: AppTheme.primary)
                     : ElevatedButton(
-                  onPressed: _login,
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(double.infinity, 50),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    backgroundColor: const Color(0xFFF25F12),
-                  ),
-                  child: const Text("Login", style: TextStyle(fontSize: 16, color: Colors.white)),
-                ),
+                        onPressed: _login,
+                        child: const Text("Login", style: TextStyle(fontSize: 16)),
+                      ),
                 const SizedBox(height: 20),
-                Row(
-                  children: const [
+                const Row(
+                  children: [
                     Expanded(child: Divider()),
                     Padding(
                       padding: EdgeInsets.symmetric(horizontal: 8),
@@ -240,7 +146,7 @@ class _LoginPageState extends State<LoginPage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text("Don’t have an Account? "),
+                    const Text("Don't have an Account? "),
                     TextButton(
                       onPressed: () {
                         Navigator.push(
@@ -250,7 +156,7 @@ class _LoginPageState extends State<LoginPage> {
                       },
                       child: const Text(
                         "Sign up here",
-                        style: TextStyle(color: Color(0xFFF25F12), fontWeight: FontWeight.bold),
+                        style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ],

@@ -1,14 +1,15 @@
-import 'dart:convert';
 import 'dart:io';
 import 'package:location/location.dart';
-import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:skyride/services/skyride_api.dart';
+import 'package:skyride/database/session_helper.dart';
+import 'package:skyride/theme/app_theme.dart';
+import 'package:skyride/widgets/shimmer_loading.dart';
 
 class UpdateAccountScreen extends StatefulWidget {
-  const UpdateAccountScreen({Key? key}) : super(key: key);
+  const UpdateAccountScreen({super.key});
 
   @override
   State<UpdateAccountScreen> createState() => _UpdateAccountScreenState();
@@ -16,258 +17,199 @@ class UpdateAccountScreen extends StatefulWidget {
 
 class _UpdateAccountScreenState extends State<UpdateAccountScreen> {
   final _formKey = GlobalKey<FormState>();
-  bool _isLoading = false;
+  bool _isLoading = true;
   Map<String, dynamic>? _user;
-  String? _error;
   String? _userId;
 
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
-  String _role = 'machanic';
+  String _role = 'user';
 
   File? _imageFile;
-
   final List<String> _roles = ['machanic', 'fuelpump', 'user'];
 
   @override
   void initState() {
     super.initState();
-    fetchUserData();
+    _fetchUserData();
   }
 
-  Future<void> fetchUserData() async {
-    final prefs = await SharedPreferences.getInstance();
-    final userId = prefs.getString('userId');
+  Future<void> _fetchUserData() async {
+    final userId = await SessionHelper.getCurrentUserId();
     if (userId == null) {
-      setState(() {
-        _error = "User ID not found.";
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
       return;
     }
 
     _userId = userId;
 
-    final url = Uri.parse('https://skyride.onrender.com/api/getaccount/$userId');
-
     try {
-      final response = await http.get(url);
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['success'] == true) {
-          _user = data['data'];
-          _usernameController.text = _user!['username'] ?? '';
-          _emailController.text = _user!['email'] ?? '';
-          _phoneController.text = _user!['phone'].toString();
-          _role = _user!['role'] ?? 'machanic';
-        }
+      final user = await SkyRideApi.instance.getUserById(userId);
+      if (user != null) {
+        _user = user;
+        _usernameController.text = user['username'] ?? '';
+        _emailController.text = user['email'] ?? '';
+        _phoneController.text = user['phone']?.toString() ?? '';
+        _role = user['role'] ?? 'user';
       }
-    } catch (e) {
-      setState(() {
-        _error = e.toString();
-      });
-    }
+    } catch (_) {}
 
-    setState(() {
-      _isLoading = false;
-    });
+    setState(() => _isLoading = false);
   }
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
     final picked = await picker.pickImage(source: ImageSource.gallery);
     if (picked != null) {
-      setState(() {
-        _imageFile = File(picked.path);
-      });
+      setState(() => _imageFile = File(picked.path));
     }
   }
 
-
-  Future<void> getLiveLocation() async {
-    Location location = Location();
-
-    bool serviceEnabled = await location.serviceEnabled();
-    if (!serviceEnabled) {
-      serviceEnabled = await location.requestService();
-    }
-
-    PermissionStatus permissionGranted = await location.hasPermission();
-    if (permissionGranted == PermissionStatus.denied) {
-      permissionGranted = await location.requestPermission();
-    }
-
-    if (permissionGranted == PermissionStatus.granted ||
-        permissionGranted == PermissionStatus.grantedLimited) {
-      final locData = await location.getLocation();
-
-      if (locData.latitude != null && locData.longitude != null) {
-        double lon = locData.latitude!;
-        double lat = locData.longitude!;
-        print("Live Location -> Latitude: $lat, Longitude: $lon");
-        // Pass the coordinates to the update method
-        _updateAccount(lat, lon);
-      } else {
-        print("Location data is null.");
-      }
-    } else {
-      print("Location permission not granted.");
-    }
-  }
-
-  Future<void> _updateAccount(double lat, double lon) async {
-    if (!_formKey.currentState!.validate()) return;
+  Future<void> _updateAccount() async {
+    if (!_formKey.currentState!.validate() || _userId == null) return;
 
     setState(() => _isLoading = true);
 
-    final uri = Uri.parse('https://skyride.onrender.com/api/updateaccount/$_userId');
-    final request = http.MultipartRequest('PUT', uri);
-
-    request.headers.addAll({
-      'Accept': 'application/json',
-    });
-
-    // Required fields
-    request.fields['username'] = _usernameController.text.trim();
-    request.fields['email'] = _emailController.text.trim();
-    request.fields['phone'] = _phoneController.text.trim();
-    request.fields['role'] = _role; // e.g., 'machanic', 'fuelpump', 'user'
-
-    // Location field - using dynamic coordinates from live location
-    request.fields['location'] = jsonEncode({
-      "type": "Point",
-      "coordinates": [lat, lon]
-    });
-
-    // Optional profile image
-    if (_imageFile != null && await _imageFile!.exists()) {
-      request.files.add(await http.MultipartFile.fromPath('image', _imageFile!.path));
-    }
+    double? lat;
+    double? lon;
 
     try {
-      final streamed = await request.send();
-      final response = await http.Response.fromStream(streamed);
+      final location = Location();
+      bool serviceEnabled = await location.serviceEnabled();
+      if (!serviceEnabled) serviceEnabled = await location.requestService();
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['message'].toString().toLowerCase().contains("success")) {
+      PermissionStatus permission = await location.hasPermission();
+      if (permission == PermissionStatus.denied) {
+        permission = await location.requestPermission();
+      }
+
+      if (permission == PermissionStatus.granted || permission == PermissionStatus.grantedLimited) {
+        final locData = await location.getLocation();
+        if (locData.latitude != null && locData.longitude != null) {
+          lat = locData.latitude;
+          lon = locData.longitude;
+        }
+      }
+    } catch (_) {}
+
+    try {
+      final success = await SkyRideApi.instance.updateUser(
+        userId: _userId!,
+        username: _usernameController.text.trim(),
+        email: _emailController.text.trim(),
+        phone: _phoneController.text.trim(),
+        role: _role,
+        imagePath: _imageFile?.path,
+        latitude: lat,
+        longitude: lon,
+      );
+
+      if (success) {
+        final updatedUser = await SkyRideApi.instance.getUserById(_userId!);
+        if (updatedUser != null) await SessionHelper.saveUserSession(updatedUser);
+
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Account updated successfully!")),
+            const SnackBar(content: Text("Account updated successfully!")),
           );
-          Navigator.pop(context); // Return to view screen
-        } else {
-          throw Exception("Update failed: ${data['message']}");
+          Navigator.pop(context);
         }
       } else {
-        throw Exception("Server error: ${response.statusCode}");
+        throw Exception("Update failed");
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
+  ImageProvider _getImageProvider(String? imagePath) {
+    if (imagePath != null && imagePath.isNotEmpty) {
+      if (imagePath.startsWith('/') || imagePath.contains(':\\')) {
+        return FileImage(File(imagePath));
+      }
+      return NetworkImage(imagePath);
+    }
+    return const AssetImage('assets/images/user1.jpg');
+  }
 
   @override
   Widget build(BuildContext context) {
-    final imageUrl = _user?['image'];
+    final imagePath = _user?['image'] as String?;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text("Update Account"),
-        backgroundColor: const Color(0xFFF25F12),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+      backgroundColor: AppTheme.screenBackground,
+      appBar: AppBar(title: const Text("Update Account")),
+      body: _isLoading && _user == null
+          ? const ShimmerFormLoading()
           : Padding(
-        padding: const EdgeInsets.all(16),
-        child: SingleChildScrollView(
-          child: Form(
-            key: _formKey,
-            child: Column(
-              children: [
-                Stack(
-                  children: [
-                    CircleAvatar(
-                      radius: 55,
-                      backgroundImage: _imageFile != null
-                          ? FileImage(_imageFile!)
-                          : (imageUrl != null && imageUrl.isNotEmpty)
-                          ? NetworkImage(imageUrl)
-                          : AssetImage('assets/images/user1.jpg') as ImageProvider,
-                    ),
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: IconButton(
-                        icon: SvgPicture.string(cameraIcon),
-                        onPressed: _pickImage,
+              padding: const EdgeInsets.all(16),
+              child: SingleChildScrollView(
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    children: [
+                      Stack(
+                        children: [
+                          CircleAvatar(
+                            radius: 55,
+                            backgroundImage: _imageFile != null
+                                ? FileImage(_imageFile!)
+                                : _getImageProvider(imagePath),
+                          ),
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: IconButton(
+                              icon: SvgPicture.string(cameraIcon),
+                              onPressed: _pickImage,
+                            ),
+                          )
+                        ],
                       ),
-                    )
-                  ],
-                ),
-                const SizedBox(height: 20),
-                _buildTextField("Username", _usernameController),
-                _buildTextField("Email", _emailController, keyboard: TextInputType.emailAddress),
-                _buildTextField("Phone", _phoneController, keyboard: TextInputType.phone),
-                const SizedBox(height: 10),
-                DropdownButtonFormField<String>(
-                  value: _role,
-                  items: _roles.map((role) {
-                    return DropdownMenuItem<String>(
-                      value: role,
-                      child: Text(role),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _role = value!;
-                    });
-                  },
-                  decoration: InputDecoration(
-                    labelText: "Role",
-                    border: OutlineInputBorder(),
+                      const SizedBox(height: 20),
+                      _buildTextField("Username", _usernameController),
+                      _buildTextField("Email", _emailController, keyboard: TextInputType.emailAddress),
+                      _buildTextField("Phone", _phoneController, keyboard: TextInputType.phone),
+                      const SizedBox(height: 10),
+                      DropdownButtonFormField<String>(
+                        value: _role,
+                        items: _roles.map((role) {
+                          return DropdownMenuItem<String>(
+                            value: role,
+                            child: Text(role == 'machanic' ? 'Mechanic' : role == 'fuelpump' ? 'Fuel Pump' : 'User'),
+                          );
+                        }).toList(),
+                        onChanged: (value) => setState(() => _role = value!),
+                        decoration: const InputDecoration(labelText: "Role"),
+                      ),
+                      const SizedBox(height: 20),
+                      ElevatedButton(
+                        onPressed: _isLoading ? null : _updateAccount,
+                        child: _isLoading
+                            ? const CircularProgressIndicator(color: Colors.white)
+                            : const Text("Update Account"),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: () async {
-                    // First fetch the live location
-                    await getLiveLocation();
-
-                    // The account will be updated once the location is fetched
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFF25F12),
-                    minimumSize: const Size(double.infinity, 50),
-                  ),
-                  child: const Text("Update Account"),
-                ),
-              ],
+              ),
             ),
-          ),
-        ),
-      ),
     );
   }
 
   Widget _buildTextField(String label, TextEditingController controller,
-      {TextInputType keyboard = TextInputType.text, bool obscure = false, String? hint}) {
+      {TextInputType keyboard = TextInputType.text}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: TextFormField(
         controller: controller,
         keyboardType: keyboard,
-        obscureText: obscure,
-        decoration: InputDecoration(
-          labelText: label,
-          hintText: hint,
-          border: const OutlineInputBorder(),
-        ),
+        decoration: InputDecoration(labelText: label),
         validator: (value) => value == null || value.trim().isEmpty ? 'Required' : null,
       ),
     );

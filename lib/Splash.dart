@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
+import 'package:skyride/theme/app_theme.dart';
 import './bording.dart';
-import './navigation/navigation.dart'; // Import your Navigationbar widget
+import './navigation/navigation.dart';
 
 class Splash extends StatefulWidget {
   @override
@@ -24,10 +25,10 @@ class SplashState extends State<Splash> {
     await Future.delayed(const Duration(seconds: 5));
 
     if (token != null && token.isNotEmpty) {
-      // If token is saved, navigate to home
+      final userId = prefs.getString('userId') ?? 'guest';
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => Navigationbar()),
+        MaterialPageRoute(builder: (context) => Navigationbar(sessionKey: userId)),
       );
     } else {
       // If token is not saved, go to onboarding screen
@@ -41,7 +42,7 @@ class SplashState extends State<Splash> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.background,
       body: Center(
         child: Image.asset(
           'assets/images/logo2.png',

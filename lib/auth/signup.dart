@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:fluttertoast/fluttertoast.dart';
-import 'dart:convert';
+import 'package:skyride/services/skyride_api.dart';
+import 'package:skyride/theme/app_theme.dart';
 import './signverify.dart';
 import 'package:intl/intl.dart';
 
@@ -41,7 +41,6 @@ class _SignupPageState extends State<SignupPage> {
     if (_usernameController.text.trim().isEmpty ||
         _emailController.text.trim().isEmpty ||
         _passwordController.text.isEmpty ||
-        _confirmPasswordController.text.isEmpty ||
         _dobController.text.isEmpty ||
         _countryController.text.trim().isEmpty ||
         _phoneController.text.trim().isEmpty) {
@@ -49,50 +48,41 @@ class _SignupPageState extends State<SignupPage> {
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
-
-    var url = Uri.parse('https://skyride.onrender.com/api/signup');
-
-    var request = http.MultipartRequest('POST', url);
-    request.fields['username'] = _usernameController.text.trim();
-    request.fields['email'] = _emailController.text.trim();
-    request.fields['password'] = _passwordController.text;
-    request.fields['confirmpassword'] = _confirmPasswordController.text;
-    request.fields['date_of_birth'] = _dobController.text;
-    request.fields['country'] = _countryController.text;
-    request.fields['phone'] = _phoneController.text;
-    request.fields['role'] = 'user';
+    setState(() => _isLoading = true);
 
     try {
-      var streamedResponse = await request.send();
-      var response = await http.Response.fromStream(streamedResponse);
+      final userId = await SkyRideApi.instance.registerUser(
+        username: _usernameController.text.trim(),
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        dateOfBirth: _dobController.text,
+        country: _countryController.text.trim(),
+        phone: _phoneController.text.trim(),
+        role: 'user',
+      );
 
-      if (response.statusCode == 200) {
-        var data = json.decode(response.body);
-        Fluttertoast.showToast(msg: data["message"]);
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => VerificationPage1()),
-        );
+      if (userId != null) {
+        Fluttertoast.showToast(msg: "Account created successfully!");
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => VerificationPage1()),
+          );
+        }
       } else {
-        Fluttertoast.showToast(msg: "Signup failed: ${response.reasonPhrase}");
+        Fluttertoast.showToast(msg: "Email already registered");
       }
     } catch (e) {
       Fluttertoast.showToast(msg: "Error: $e");
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<void> _selectDate(BuildContext context) async {
-    DateTime initialDate = _selectedDate ?? DateTime(2000);
-    final DateTime? picked = await showDatePicker(
+    final picked = await showDatePicker(
       context: context,
-      initialDate: initialDate,
+      initialDate: _selectedDate ?? DateTime(2000),
       firstDate: DateTime(1900),
       lastDate: DateTime.now(),
     );
@@ -107,7 +97,7 @@ class _SignupPageState extends State<SignupPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.background,
       body: Stack(
         children: [
           SingleChildScrollView(
@@ -118,61 +108,51 @@ class _SignupPageState extends State<SignupPage> {
                   const SizedBox(height: 80),
                   Image.asset('assets/images/logo2.png', height: 160),
                   const SizedBox(height: 30),
-
                   _buildTextField(_usernameController, Icons.person, "Username"),
                   _buildTextField(_emailController, Icons.email, "Email"),
-
-                  // Date of Birth Picker Field
                   Padding(
                     padding: const EdgeInsets.only(bottom: 16),
                     child: TextField(
                       controller: _dobController,
                       readOnly: true,
                       onTap: () => _selectDate(context),
-                      decoration: InputDecoration(
-                        prefixIcon: const Icon(Icons.calendar_today),
+                      decoration: const InputDecoration(
+                        prefixIcon: Icon(Icons.calendar_today),
                         labelText: "Date of Birth",
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                       ),
                     ),
                   ),
-
                   _buildTextField(_countryController, Icons.location_on, "Country"),
                   _buildTextField(_phoneController, Icons.phone, "Phone"),
                   _buildPasswordField(_passwordController, "Password", true),
                   _buildPasswordField(_confirmPasswordController, "Confirm Password", false),
-
                   Row(
                     children: [
                       Checkbox(
                         value: _termsAccepted,
                         onChanged: (value) => setState(() => _termsAccepted = value ?? false),
                       ),
-                      const Text("I accept the Terms and Conditions"),
+                      const Expanded(child: Text("I accept the Terms and Conditions")),
                     ],
                   ),
                   const SizedBox(height: 10),
-
                   ElevatedButton(
                     onPressed: _isLoading ? null : _registerUser,
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 50),
-                      backgroundColor: const Color(0xFFF25F12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
                     child: _isLoading
                         ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text("Sign Up", style: TextStyle(fontSize: 16, color: Colors.white)),
+                        : const Text("Sign Up", style: TextStyle(fontSize: 16)),
                   ),
                   const SizedBox(height: 20),
-
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Text("Already have an account? "),
                       TextButton(
                         onPressed: () => Navigator.pop(context),
-                        child: const Text("Login here", style: TextStyle(color: Color(0xFFF25F12), fontWeight: FontWeight.bold)),
+                        child: const Text(
+                          "Login here",
+                          style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold),
+                        ),
                       ),
                     ],
                   ),
@@ -180,7 +160,6 @@ class _SignupPageState extends State<SignupPage> {
               ),
             ),
           ),
-
           Positioned(
             top: 40,
             left: 16,
@@ -188,7 +167,7 @@ class _SignupPageState extends State<SignupPage> {
               onTap: () => Navigator.pop(context),
               child: Container(
                 padding: const EdgeInsets.all(5),
-                decoration: const BoxDecoration(color: Color(0xFFF25F12), shape: BoxShape.circle),
+                decoration: const BoxDecoration(color: AppTheme.primary, shape: BoxShape.circle),
                 child: const Icon(Icons.arrow_back, color: Colors.white),
               ),
             ),
@@ -203,11 +182,7 @@ class _SignupPageState extends State<SignupPage> {
       padding: const EdgeInsets.only(bottom: 16),
       child: TextField(
         controller: controller,
-        decoration: InputDecoration(
-          prefixIcon: Icon(icon),
-          labelText: label,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-        ),
+        decoration: InputDecoration(prefixIcon: Icon(icon), labelText: label),
       ),
     );
   }
@@ -221,10 +196,10 @@ class _SignupPageState extends State<SignupPage> {
         decoration: InputDecoration(
           prefixIcon: const Icon(Icons.lock),
           labelText: label,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
           suffixIcon: IconButton(
             icon: Icon(
-              isPassword ? (_showPassword ? Icons.visibility : Icons.visibility_off)
+              isPassword
+                  ? (_showPassword ? Icons.visibility : Icons.visibility_off)
                   : (_showConfirmPassword ? Icons.visibility : Icons.visibility_off),
             ),
             onPressed: () {
