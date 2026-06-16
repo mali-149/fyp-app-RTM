@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:skyride/theme/app_theme.dart';
 
 class PrivacyPolicyScreen extends StatelessWidget {
   const PrivacyPolicyScreen({super.key});
@@ -6,20 +7,9 @@ class PrivacyPolicyScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-
-        iconTheme: const IconThemeData(color: Colors.black),
-        title: const Text(
-          "Privacy Policy",
-          style: TextStyle(
-            color: Color(0xFFF25F12),
-            fontWeight: FontWeight.bold,
-          ),
-
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
+        title: const Text("Privacy Policy", style: TextStyle(fontWeight: FontWeight.bold)),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -33,7 +23,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFFF25F12),
+                  color: AppTheme.primary,
                 ),
               ),
               SizedBox(height: 10),
@@ -47,7 +37,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFFF25F12),
+                  color: AppTheme.primary,
                 ),
               ),
               SizedBox(height: 10),
@@ -61,7 +51,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFFF25F12),
+                  color: AppTheme.primary,
                 ),
               ),
               SizedBox(height: 10),
@@ -79,7 +69,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFFF25F12),
+                  color: AppTheme.primary,
                 ),
               ),
               SizedBox(height: 10),
@@ -93,7 +83,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFFF25F12),
+                  color: AppTheme.primary,
                 ),
               ),
               SizedBox(height: 10),
@@ -107,7 +97,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFFF25F12),
+                  color: AppTheme.primary,
                 ),
               ),
               SizedBox(height: 10),
@@ -121,7 +111,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFFF25F12),
+                  color: AppTheme.primary,
                 ),
               ),
               SizedBox(height: 10),

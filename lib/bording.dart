@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:skyride/theme/app_theme.dart';
 import './auth/login.dart';
 class OnboardingScreen extends StatefulWidget {
   @override
@@ -92,7 +93,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       }
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xFFF25F12),
+                      backgroundColor: AppTheme.primary,
                       padding: EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
@@ -118,7 +119,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       height: 6,
       width: isActive ? 18 : 6,
       decoration: BoxDecoration(
-        color: isActive ? Color(0xFFF25F12) : Colors.grey,
+        color: isActive ? AppTheme.primary : Colors.grey,
         borderRadius: BorderRadius.circular(8),
       ),
     );
@@ -200,7 +201,7 @@ class OnboardingContent extends StatelessWidget {
                         ),
                         TextSpan(
                           text: " $highlight", // Add space before highlighted text
-                          style: TextStyle(fontSize: 23, fontWeight: FontWeight.bold, color: Color(0xFFF25F12)),
+                          style: TextStyle(fontSize: 23, fontWeight: FontWeight.bold, color: AppTheme.primary),
                         ),
                       ],
                     ),
