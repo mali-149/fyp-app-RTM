@@ -1,51 +1,51 @@
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'package:flutter/material.dart';
-// Screens
+import 'package:skyride/theme/app_theme.dart';
 import '../Screens/Chat.dart';
 import '../Screens/profile.dart';
 import '../Screens/home.dart';
-// import '../Screens/profile.dart';
-// import '../Screens/home.dart';
-// import '../Screens/chat.dart';
 
 class Navigationbar extends StatefulWidget {
-  const Navigationbar({super.key});
+  final String sessionKey;
+
+  const Navigationbar({super.key, required this.sessionKey});
 
   @override
-  _DashboardScreenState createState() => _DashboardScreenState();
+  NavigationbarState createState() => NavigationbarState();
 }
 
-class _DashboardScreenState extends State<Navigationbar> {
+class NavigationbarState extends State<Navigationbar> {
   int _selectedIndex = 0;
   late PageController _pageController;
-
-  static final List<Widget> _widgetOptions = <Widget>[
-    Home(),
-    // Project(),
-    // AddPost(),
-    Chat(),
-    Profile(),
-  ];
+  final GlobalKey<ChatState> _chatKey = GlobalKey<ChatState>();
+  final GlobalKey<HomeState> _homeKey = GlobalKey<HomeState>();
 
   @override
   void initState() {
     super.initState();
-    // Initialize the PageController here to avoid the LateInitializationError
     _pageController = PageController(initialPage: _selectedIndex);
   }
 
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-    _pageController.jumpToPage(index); // Jump to the selected page
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 
-  // When the user swipes between pages, update the selected index
+  void _onItemTapped(int index) {
+    setState(() => _selectedIndex = index);
+    _pageController.jumpToPage(index);
+    _refreshTab(index);
+  }
+
   void _onPageChanged(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+    setState(() => _selectedIndex = index);
+    _refreshTab(index);
+  }
+
+  void _refreshTab(int index) {
+    if (index == 0) _homeKey.currentState?.reload();
+    if (index == 1) _chatKey.currentState?.reload();
   }
 
   @override
@@ -54,53 +54,43 @@ class _DashboardScreenState extends State<Navigationbar> {
       backgroundColor: Colors.white,
       body: PageView(
         controller: _pageController,
-        onPageChanged: _onPageChanged, // Listen to page changes
-        children: _widgetOptions,
+        onPageChanged: _onPageChanged,
+        children: [
+          Home(key: _homeKey, sessionKey: widget.sessionKey),
+          Chat(key: _chatKey, sessionKey: widget.sessionKey),
+          Profile(key: ValueKey('profile_${widget.sessionKey}')),
+        ],
       ),
       bottomNavigationBar: CurvedNavigationBar(
-        backgroundColor: Colors.white,  // Background of the body
-        color: Colors.white,  // Navigation bar color
-        buttonBackgroundColor: Color(0xFFF25F12),
+        backgroundColor: AppTheme.background,
+        color: AppTheme.background,
+        buttonBackgroundColor: AppTheme.primary,
         height: 65,
         animationDuration: const Duration(milliseconds: 300),
         animationCurve: Curves.easeInOut,
         index: _selectedIndex,
-
         items: <Widget>[
           _buildNavItem(Icons.home, 'Home', 0),
-          // _buildNavItem(Icons.work_outline, 'Projects', 1),
-          // _buildNavItem(Icons.add_circle, 'Add', 2),
           _buildNavItem(Icons.chat, 'Chat', 1),
           _buildNavItem(Icons.person, 'Profile', 2),
         ],
-
-        onTap: _onItemTapped, // Handle item tap from bottom navigation
+        onTap: _onItemTapped,
       ),
     );
   }
 
-
   Widget _buildNavItem(IconData icon, String label, int index) {
-
     final isSelected = _selectedIndex == index;
-
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(icon, size: 30, color: isSelected ? Colors.white : Colors.black,),
-        if (_selectedIndex != index)
+        Icon(icon, size: 30, color: isSelected ? Colors.white : Colors.black),
+        if (!isSelected)
           Text(
             label,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
-            ),
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black),
           ),
       ],
     );
   }
-
 }
-
-

@@ -1,8 +1,8 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:http/http.dart' as http;
-import './forverify.dart'; // Import VerificationPage
+import 'package:skyride/services/skyride_api.dart';
+import 'package:skyride/theme/app_theme.dart';
+import './forverify.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
   @override
@@ -15,8 +15,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   bool _isLoading = false;
 
   Future<void> _sendResetCode() async {
-    final String email = _emailController.text.trim();
-    final String password = _passwordController.text.trim();
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
       Fluttertoast.showToast(
@@ -29,42 +29,42 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
-    final url = Uri.parse('https://skyride.onrender.com/api/updatepassword');
     try {
-      final response = await http.put(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'email': email,
-          'password': password, // Using the entered password
-        }),
-      );
+      final user = await SkyRideApi.instance.getUserByEmail(email);
 
-      final responseData = jsonDecode(response.body);
-      if (response.statusCode == 200 && responseData['message'] == "Verification email sent. Please check your inbox and verify its you.") {
-        // Show success message
+      if (user == null) {
         Fluttertoast.showToast(
-          msg: responseData['message'],
+          msg: "No account found with this email",
+          toastLength: Toast.LENGTH_LONG,
+          gravity: ToastGravity.BOTTOM,
+          backgroundColor: Colors.red,
+          textColor: Colors.white,
+        );
+        return;
+      }
+
+      final updated = await SkyRideApi.instance.updatePassword(email, password);
+
+      if (updated) {
+        Fluttertoast.showToast(
+          msg: "Password updated successfully!",
           toastLength: Toast.LENGTH_LONG,
           gravity: ToastGravity.BOTTOM,
           backgroundColor: Colors.green,
           textColor: Colors.white,
         );
 
-        // Navigate to the verification page
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => VerificationPage(email:email)), // Replace with your verification page
-        );
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => VerificationPage(email: email)),
+          );
+        }
       } else {
         Fluttertoast.showToast(
-          msg: responseData['message'] ?? "Failed to send reset code",
+          msg: "Failed to update password",
           toastLength: Toast.LENGTH_LONG,
           gravity: ToastGravity.BOTTOM,
           backgroundColor: Colors.red,
@@ -80,21 +80,16 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         textColor: Colors.white,
       );
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        // Close keyboard when tapping outside
-        FocusScope.of(context).unfocus();
-      },
+      onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: AppTheme.background,
         body: Stack(
           children: [
             Align(
@@ -105,10 +100,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Image.asset(
-                        'assets/images/logo2.png',
-                        height: 160,
-                      ),
+                      Image.asset('assets/images/logo2.png', height: 160),
                       const SizedBox(height: 20),
                       const Text(
                         "Forgot Password",
@@ -116,7 +108,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                       ),
                       const SizedBox(height: 10),
                       const Text(
-                        "🔐 Enter your email and new password then verify from email! ✉️",
+                        "Enter your email and new password to reset",
                         textAlign: TextAlign.center,
                         style: TextStyle(fontSize: 16, color: Colors.grey),
                       ),
@@ -124,57 +116,30 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                       TextField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
-                        decoration: InputDecoration(
-                          hintText: "Email Address",
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                        ),
+                        decoration: const InputDecoration(hintText: "Email Address"),
                       ),
                       const SizedBox(height: 20),
                       TextField(
                         controller: _passwordController,
-                        obscureText: true, // Hide password input
-                        decoration: InputDecoration(
-                          hintText: "New Password",
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                        ),
+                        obscureText: true,
+                        decoration: const InputDecoration(hintText: "New Password"),
                       ),
                       const SizedBox(height: 20),
                       _isLoading
-                          ? const CircularProgressIndicator()
+                          ? const CircularProgressIndicator(color: AppTheme.primary)
                           : ElevatedButton(
-                        onPressed: _sendResetCode,
-                        style: ElevatedButton.styleFrom(
-                          minimumSize: const Size(double.infinity, 50),
-                          backgroundColor: Color(0xFFF25F12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: const Text(
-                          "Update Password",
-                          style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),
-                        ),
-                      ),
+                              onPressed: _sendResetCode,
+                              child: const Text(
+                                "Update Password",
+                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                              ),
+                            ),
                       const SizedBox(height: 20),
                       GestureDetector(
-                        onTap: () {
-                          Navigator.pop(context);
-                        },
+                        onTap: () => Navigator.pop(context),
                         child: const Text(
                           "Back to Login",
-                          style: TextStyle(fontSize: 16, color: Color(0xFFF25F12), fontWeight: FontWeight.bold),
+                          style: TextStyle(fontSize: 16, color: AppTheme.primary, fontWeight: FontWeight.bold),
                         ),
                       ),
                     ],
@@ -186,16 +151,11 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
               top: 40,
               left: 16,
               child: GestureDetector(
-                onTap: () {
-                  Navigator.pop(context);
-                },
+                onTap: () => Navigator.pop(context),
                 child: Container(
                   width: 35,
                   height: 35,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFF25F12),
-                    shape: BoxShape.circle,
-                  ),
+                  decoration: const BoxDecoration(color: AppTheme.primary, shape: BoxShape.circle),
                   child: const Icon(Icons.arrow_back, color: Colors.white, size: 22),
                 ),
               ),
